@@ -3,25 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <title>Triceratops</title>
-  <style>
-  html, body {
-    margin: 0;
-    overflow: hidden;
-    height: 100%;
-  }
-  canvas[resize] {
-    width: 100%;
-    height: 100%;
-  }
-  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://code.jquery.com/jquery-3.0.0.min.js"
+    integrity="sha256-JmvOoLtYsmqlsWxa7mDSLMwa6dZ9rrIdtrrVYRnDRH0=" crossorigin="anonymous"></script>
   <script type="text/javascript" src="paper-full.js"></script>
+  <script type="text/javascript">
+  $(document).ready(function() {
+    $('.modal-wrapper').click(function(e) {
+      if (e.target.id === 'modal-wrapper') {
+        $('.modal-wrapper').removeClass('open');
+      }
+    });
+    $('.trigger').click(function() {
+      $('.modal-wrapper').toggleClass('open');
+    });
+  });
+  </script>
   <script type="text/paperscript" canvas="canvas">
 
     tool.minDistance = 10;
 
     var gridStyle = {
       strokeWidth: 0.33,
-      strokeColor: '#cfc'
+      strokeColor: 'lightblue'
     };
     var moduleStyle = {
       opacity: 0.8,
@@ -37,43 +41,14 @@
     };
 
     function createGrid() {
-      for (var i=0; i<2000; i=i+50) {
+      var size = 1600;
+      for (var i=0; i<=size; i=i+50) {
         // from x, y => to x, y
-        var l = new Path.Line(new Point(i, 0), new Point(i, 1600));
+        var l = new Path.Line(new Point(i, 0), new Point(i, size));
         l.style = gridStyle;
-        l = new Path.Line(new Point(0, i), new Point(1600, i));
+        l = new Path.Line(new Point(0, i), new Point(size, i));
         l.style = gridStyle;
       }
-      var zoomP = new PointText({
-        content: '+',
-        fontFamily: 'Courier New',
-        fillColor: '#000',
-        fontWeight: 'bold',
-        fontSize: 30
-      });
-      zoomP.position = [10, 12];
-      zoomP.on('mouseenter', function() {
-        this.fillColor = '#393';
-      })
-      .on('mouseleave', function() {
-        this.fillColor = '#000';
-      })
-      .on('mousedown', function() {
-        project.activeLayer.scaling += 0.1;
-      });
-
-      var zoomM = zoomP.clone();
-      zoomM.position = [10, 35];
-      zoomM.content = '-';
-      zoomM.on('mouseenter', function() {
-        this.fillColor = '#393';
-      })
-      .on('mouseleave', function() {
-        this.fillColor = '#000';
-      })
-      .on('mousedown', function() {
-        project.activeLayer.scaling -= 0.1;
-      });
     };
 
     function createModule(name, position) {
@@ -115,8 +90,8 @@
       );
       line.reAlign = function() {
         var w = m1.circR.position.x - m2.circL.position.x;
-        line.segments[0].point = m1.circR.position;
-        line.segments[3].point = m2.circL.position;
+        line.firstSegment.point = m1.circR.position;
+        line.lastSegment.point = m2.circL.position;
         if (w == 10) {
           line.segments[1].point = m1.circR.position;
           line.segments[2].point = m2.circL.position;
@@ -132,32 +107,35 @@
       return line;
     };
 
+    function onKeyDown(event) {
+      if (event.key === 'z') {
+        if (event.modifiers.shift) {
+          console.log('Zoom --1');
+          view.zoom -= 0.1;
+        } else {
+          console.log('Zoom ++1');
+          view.zoom += 0.1;
+        }
+      }
+    };
 
-    createGrid();
 
-    var m1 = createModule(1, [50, 150]);
-    var m2 = createModule(2, [300, 200]);
-    var m3 = createModule(3, [600, 50]);
-    var m4 = createModule(4, [600, 350]);
-
-    var l1 = connectModule(m1, m2);
-    var l2 = connectModule(m2, m3);
-    var l3 = connectModule(m3, m4);
-
-
-    var hitOptions = { segments: true, stroke: true, fill: true, tolerance: 3 };
-    var obj;
+    var hitOptions = { segments: false, stroke: false, fill: true, tolerance: 3 };
+    var obj, drag;
 
     function onMouseDown(event) {
       obj = null;
       var hitResult = project.hitTest(event.point, hitOptions);
       if (hitResult && hitResult.type == 'fill') {
         obj = hitResult.item.group;
+      } else if (!hitResult) {
+        drag = true;
       }
     };
 
     function onMouseUp(event) {
       obj = null;
+      drag = false;
     };
 
     function onMouseDrag(event) {
@@ -173,7 +151,6 @@
         } else if (obj.position.y - event.point.y >= 50) {
           dy = -50;
         }
-
         if (dx || dy) {
           obj.position += [dx, dy];
           if (obj.lineL) {
@@ -183,12 +160,40 @@
             obj.lineR.reAlign();
           }
         }
+      } else if (drag) {
+        project.activeLayer.position += event.delta;
       }
     };
+
+    // Initialize scene !!
+    createGrid();
+
+    var m1 = createModule(1, [50, 150]);
+    var m2 = createModule(2, [300, 200]);
+    var m3 = createModule(3, [600, 50]);
+    var m4 = createModule(4, [600, 350]);
+
+    var l1 = connectModule(m1, m2);
+    var l2 = connectModule(m2, m3);
+    var l3 = connectModule(m3, m4);
 
   </script>
 </head>
 <body>
 <canvas id="canvas" resize></canvas>
+<div class="toolbox">
+  <h4>Tool box</h4>
+  <button class="trigger">Modal</button>
+</div>
+<div id="modal-wrapper" class="modal-wrapper">
+  <div class="modal">
+    <div class="modal-head">
+      <a class="btn-close trigger"></a>
+    </div>
+    <div class="modal-body">
+      Hello world
+    </div>
+  </div>
+</div>
 </body>
 </html>
