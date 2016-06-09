@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Triceratops</title>
+  <style>
+  html, body {
+    margin: 0;
+    overflow: hidden;
+    height: 100%;
+  }
+  canvas[resize] {
+    width: 100%;
+    height: 100%;
+  }
+  </style>
+  <script type="text/javascript" src="paper-full.js"></script>
+  <script type="text/paperscript" canvas="canvas">
+
+    tool.minDistance = 10;
+
+    var gridStyle = {
+      strokeWidth: 0.33,
+      strokeColor: '#cfc'
+    };
+    var moduleStyle = {
+      opacity: 0.8,
+      fillColor: '#e9e9ff',
+      strokeColor: '#33f',
+      strokeWidth: 2
+    };
+    var rectData = {
+      radius: 10
+    };
+    var circData = {
+      radius: 5
+    };
+
+    function createGrid() {
+      for (var i=0; i<2000; i=i+50) {
+        // from x, y => to x, y
+        var l = new Path.Line(new Point(i, 0), new Point(i, 1600));
+        l.style = gridStyle;
+        l = new Path.Line(new Point(0, i), new Point(1600, i));
+        l.style = gridStyle;
+      }
+      var zoomP = new PointText({
+        content: '+',
+        fontFamily: 'Courier New',
+        fillColor: '#000',
+        fontWeight: 'bold',
+        fontSize: 30
+      });
+      zoomP.position = [10, 12];
+      zoomP.on('mouseenter', function() {
+        this.fillColor = '#393';
+      })
+      .on('mouseleave', function() {
+        this.fillColor = '#000';
+      })
+      .on('mousedown', function() {
+        project.activeLayer.scaling += 0.1;
+      });
+
+      var zoomM = zoomP.clone();
+      zoomM.position = [10, 35];
+      zoomM.content = '-';
+      zoomM.on('mouseenter', function() {
+        this.fillColor = '#393';
+      })
+      .on('mouseleave', function() {
+        this.fillColor = '#000';
+      })
+      .on('mousedown', function() {
+        project.activeLayer.scaling -= 0.1;
+      });
+    };
+
+    function createModule(name, position) {
+      var rect = new Rectangle(new Point(position), new Size(150, 100));
+      var path = new Path.Rectangle(rect, rectData.radius);
+      path.name = 'rect-' + name;
+      path.style = moduleStyle;
+      // path.selected = true;
+
+      var circL = new Path.Circle(circData);
+      circL.style = moduleStyle;
+      circL.name = 'circ-l-' + name;
+      circL.position = rect.leftCenter - [circData.radius, 0];
+
+      var circR = circL.clone();
+      circR.name = 'circ-r-' + name;
+      circR.position = rect.rightCenter + [circData.radius, 0];
+
+      var group = new Group([path, circL, circR]);
+      group.circL = circL;
+      group.circR = circR;
+      path.group = group;
+      return group;
+    };
+
+    function connectModule(m1, m2) {
+      var line = new Path();
+      line.strokeColor = 'black';
+      // Link
+      m1.lineR = line;
+      m2.lineL = line;
+      // line.modL = m1;
+      // line.modR = m2;
+      line.add(
+        new Point(), // left
+        new Point(), // middle-left
+        new Point(), // middle-right
+        new Point()  // right
+      );
+      line.reAlign = function() {
+        var w = m1.circR.position.x - m2.circL.position.x;
+        line.segments[0].point = m1.circR.position;
+        line.segments[3].point = m2.circL.position;
+        if (w == 10) {
+          line.segments[1].point = m1.circR.position;
+          line.segments[2].point = m2.circL.position;
+        } else if (w < 0) {
+          line.segments[1].point = [m1.circR.position.x-w/2, m1.circR.position.y];
+          line.segments[2].point = [m2.circL.position.x+w/2, m2.circL.position.y];
+        } else {
+          line.segments[1].point = [m1.circR.position.x+25, m1.circR.position.y];
+          line.segments[2].point = [m2.circL.position.x-25, m2.circL.position.y];
+        }
+      };
+      line.reAlign();
+      return line;
+    };
+
+
+    createGrid();
+
+    var m1 = createModule(1, [50, 150]);
+    var m2 = createModule(2, [300, 200]);
+    var m3 = createModule(3, [600, 50]);
+    var m4 = createModule(4, [600, 350]);
+
+    var l1 = connectModule(m1, m2);
+    var l2 = connectModule(m2, m3);
+    var l3 = connectModule(m3, m4);
+
+
+    var hitOptions = { segments: true, stroke: true, fill: true, tolerance: 3 };
+    var obj;
+
+    function onMouseDown(event) {
+      obj = null;
+      var hitResult = project.hitTest(event.point, hitOptions);
+      if (hitResult && hitResult.type == 'fill') {
+        obj = hitResult.item.group;
+      }
+    };
+
+    function onMouseUp(event) {
+      obj = null;
+    };
+
+    function onMouseDrag(event) {
+      if (obj) {
+        var dx = 0, dy = 0;
+        if (event.point.x - obj.position.x >= 50) {
+          dx = 50;
+        } else if (obj.position.x - event.point.x >= 50) {
+          dx = -50;
+        }
+        if (event.point.y - obj.position.y >= 50) {
+          dy = 50;
+        } else if (obj.position.y - event.point.y >= 50) {
+          dy = -50;
+        }
+
+        if (dx || dy) {
+          obj.position += [dx, dy];
+          if (obj.lineL) {
+            obj.lineL.reAlign();
+          }
+          if (obj.lineR) {
+            obj.lineR.reAlign();
+          }
+        }
+      }
+    };
+
+  </script>
+</head>
+<body>
+<canvas id="canvas" resize></canvas>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "Triceratops",
+  "description": "Triceratops app",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git@bitbucket.org:croqaz/triceratops.git"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "lint": "./node_modules/eslint/bin/eslint.js .",
+    "test": "./node_modules/mocha/bin/mocha test"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "eslint": "2.x",
+    "eslint-config-airbnb-base": "3.x",
+    "eslint-plugin-import": "1.x",
+    "mocha": "2.5.x",
+    "chai": "3.5.x"
+  },
+  "author": {
+    "name": "Cristi Constantin",
+    "email": "cristi.constantin@live.com",
+    "url": "https://github.com/CroQaz"
+  }
+}
