@@ -1,0 +1,9 @@
+{
+  "name": "triceratops",
+  "description": "Triceratops assistent",
+  "private": true,
+  "dependencies": {
+    "paper": "0.9.x",
+    "jquery": "3.x"
+  }
+}

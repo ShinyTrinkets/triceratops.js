@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <title>Triceratops</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://code.jquery.com/jquery-3.0.0.min.js"
-    integrity="sha256-JmvOoLtYsmqlsWxa7mDSLMwa6dZ9rrIdtrrVYRnDRH0=" crossorigin="anonymous"></script>
-  <script type="text/javascript" src="paper-full.js"></script>
+  <script type="text/javascript" src="vendor/jquery/dist/jquery.js"></script>
+  <script type="text/javascript" src="vendor/paper/dist/paper-full.js"></script>
+
   <script type="text/javascript">
-  $(document).ready(function() {
-    $('.modal-wrapper').click(function(e) {
-      if (e.target.id === 'modal-wrapper') {
-        $('.modal-wrapper').removeClass('open');
-      }
+    $(document).ready(function() {
+      $('.modal-wrapper').click(function(e) {
+        if (e.target.id === 'modal-wrapper') {
+          $('.modal-wrapper').removeClass('open');
+        }
+      });
+      $('.trigger').click(function() {
+        $('.modal-wrapper').toggleClass('open');
+      });
     });
-    $('.trigger').click(function() {
-      $('.modal-wrapper').toggleClass('open');
-    });
-  });
   </script>
   <script type="text/paperscript" canvas="canvas">
 
@@ -85,6 +85,8 @@
       line.add(
         new Point(), // left
         new Point(), // middle-left
+        new Point(), // left-joint
+        new Point(), // right-joint
         new Point(), // middle-right
         new Point()  // right
       );
@@ -92,20 +94,26 @@
         var w = m1.circR.position.x - m2.circL.position.x;
         line.firstSegment.point = m1.circR.position;
         line.lastSegment.point = m2.circL.position;
-        if (w == 10) {
-          line.segments[1].point = m1.circR.position;
-          line.segments[2].point = m2.circL.position;
+        if (w >= 10) {
+          var h = m2.circR.position.y - m1.circL.position.y;
+          line.segments[1].point = m1.circR.position + [25, 0];
+          line.segments[2].point = m1.circR.position + [25, h/2];
+          line.segments[3].point = m2.circL.position - [25, h/2];
+          line.segments[4].point = m2.circL.position - [25, 0];
         } else if (w < 0) {
-          line.segments[1].point = [m1.circR.position.x-w/2, m1.circR.position.y];
-          line.segments[2].point = [m2.circL.position.x+w/2, m2.circL.position.y];
+          line.segments[1].point = line.segments[2].point = [m1.circR.position.x-w/2, m1.circR.position.y];
+          line.segments[3].point = line.segments[4].point = [m2.circL.position.x+w/2, m2.circL.position.y];
         } else {
-          line.segments[1].point = [m1.circR.position.x+25, m1.circR.position.y];
-          line.segments[2].point = [m2.circL.position.x-25, m2.circL.position.y];
+          line.segments[1].point = line.segments[2].point = [m1.circR.position.x+25, m1.circR.position.y];
+          line.segments[3].point = line.segments[4].point = [m2.circL.position.x-25, m2.circL.position.y];
         }
       };
       line.reAlign();
       return line;
     };
+
+    var obj, drag;
+    var hitOpts = { segments: true, stroke: true, fill: true, tolerance: 5 };
 
     function onKeyDown(event) {
       if (event.key === 'z') {
@@ -119,13 +127,9 @@
       }
     };
 
-
-    var hitOptions = { segments: false, stroke: false, fill: true, tolerance: 3 };
-    var obj, drag;
-
     function onMouseDown(event) {
       obj = null;
-      var hitResult = project.hitTest(event.point, hitOptions);
+      var hitResult = project.hitTest(event.point, hitOpts);
       if (hitResult && hitResult.type == 'fill') {
         obj = hitResult.item.group;
       } else if (!hitResult) {
@@ -140,6 +144,10 @@
 
     function onMouseDrag(event) {
       if (obj) {
+        var items = project.getItems({ name: /^rect-/ });
+        console.log(items);;
+        // var hitResult = obj.hitTest(event.point, hitOpts);
+
         var dx = 0, dy = 0;
         if (event.point.x - obj.position.x >= 50) {
           dx = 50;
