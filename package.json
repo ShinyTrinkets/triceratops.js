@@ -2,16 +2,20 @@
   "name": "Triceratops",
   "description": "Triceratops app",
   "private": true,
+  "engine": {
+    "node": "6.x"
+  },
   "repository": {
     "type": "git",
     "url": "git@bitbucket.org:croqaz/triceratops.git"
   },
   "scripts": {
-    "start": "node server/server.js",
     "lint": "./node_modules/eslint/bin/eslint.js .",
     "test": "./node_modules/mocha/bin/mocha test"
   },
   "dependencies": {
+    "async": "~2.0.0-rc",
+    "lodash": "4.x"
   },
   "devDependencies": {
     "eslint": "2.x",
