@@ -3,7 +3,7 @@
   "description": "Triceratops assistent",
   "private": true,
   "dependencies": {
-    "paper": "0.9.x",
+    "paper": "0.10.x",
     "jquery": "3.x"
   }
 }

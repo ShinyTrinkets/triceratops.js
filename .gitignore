@@ -36,3 +36,7 @@ app/vendor
 dist
 release
 .idea
+
+# Test media files
+*.mp3
+*.mp4

@@ -5,13 +5,19 @@ const fs = require('fs');
 const path = require('path');
 const checkType = require('./utils').checkType;
 
+/**
+  @input: 1 or more files
+  @output: the name of the destination folder
+  */
 class ModuleCopy {
 
   constructor(options) {
     if (options && options.input) {
+      // List of files
       this.input = checkType('Array', options.input);
     }
     if (options && options.output) {
+      // Destination folder
       this.output = checkType('String', options.output);
     }
     this.run = this.run.bind(this);
@@ -31,6 +37,7 @@ class ModuleCopy {
   }
 
   run(options, final) {
+    // If the "options" is the final callback function
     if (options && !final && lo.isFunction(options)) {
       final = options;
       options = null;
@@ -41,7 +48,8 @@ class ModuleCopy {
     if (options && options.output) {
       this.output = checkType('String', options.output);
     }
-    console.log(`[ModuleCopy] :: input = ${JSON.stringify(this.input)}, output = ${JSON.stringify(this.output)};`)
+    console.log(`[ModuleCopy] :: input = ${JSON.stringify(this.input)},
+      output = ${JSON.stringify(this.output)};`)
 
     const pending = [];
     const ordered = [];
