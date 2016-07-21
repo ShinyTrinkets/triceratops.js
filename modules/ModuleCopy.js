@@ -48,8 +48,8 @@ class ModuleCopy {
     if (options && options.output) {
       this.output = checkType('String', options.output);
     }
-    console.log(`[ModuleCopy] :: input = ${JSON.stringify(this.input)},
-      output = ${JSON.stringify(this.output)};`)
+    console.log(`[ModuleCopy] :: input = ${JSON.stringify(this.input)}, ` +
+      `output folder = ${JSON.stringify(this.output)};`)
 
     const pending = [];
     const ordered = [];
