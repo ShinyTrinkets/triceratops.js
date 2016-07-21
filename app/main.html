@@ -19,6 +19,7 @@
       });
     });
   </script>
+
   <script type="text/paperscript" canvas="canvas">
 
     tool.minDistance = 10;
@@ -68,6 +69,8 @@
       circR.position = rect.rightCenter + [circData.radius, 0];
 
       var group = new Group([path, circL, circR]);
+      group.name = 'module-' + name;
+      group.rect = path;
       group.circL = circL;
       group.circR = circR;
       path.group = group;
@@ -112,7 +115,20 @@
       return line;
     };
 
-    var obj, drag;
+    function markIntersect(mod) {
+      intersect = mod.rect;
+      intersect.strokeColor = 'red';
+    };
+
+    function clearIntersect() {
+      if (intersect) {
+        intersect.strokeColor = moduleStyle.strokeColor;
+        intersect = null;
+      }
+    };
+
+
+    var obj, intersect, drag;
     var hitOpts = { segments: true, stroke: true, fill: true, tolerance: 5 };
 
     function onKeyDown(event) {
@@ -140,14 +156,11 @@
     function onMouseUp(event) {
       obj = null;
       drag = false;
+      clearIntersect();
     };
 
     function onMouseDrag(event) {
       if (obj) {
-        var items = project.getItems({ name: /^rect-/ });
-        console.log(items);;
-        // var hitResult = obj.hitTest(event.point, hitOpts);
-
         var dx = 0, dy = 0;
         if (event.point.x - obj.position.x >= 50) {
           dx = 50;
@@ -159,8 +172,24 @@
         } else if (obj.position.y - event.point.y >= 50) {
           dy = -50;
         }
+
         if (dx || dy) {
+          var oldPos = obj.position;
+          // Move selected object to the new position
           obj.position += [dx, dy];
+          // Check intersection with other groups
+          var modules = project.getItems({ name: /^module-/ });
+          for (var i = 0; i < modules.length; i++) {
+            var mod = modules[i];
+            if (obj.name === mod.name) continue;
+            if (obj.bounds.intersects(mod.bounds)) {
+              markIntersect(mod);
+              obj.position = oldPos; // Move back
+              return;
+            }
+          }
+          clearIntersect();
+          // Re-align connecting lines
           if (obj.lineL) {
             obj.lineL.reAlign();
           }
@@ -180,10 +209,12 @@
     var m2 = createModule(2, [300, 200]);
     var m3 = createModule(3, [600, 50]);
     var m4 = createModule(4, [600, 350]);
+    var m5 = createModule(5, [800, 350]);
 
     var l1 = connectModule(m1, m2);
     var l2 = connectModule(m2, m3);
     var l3 = connectModule(m3, m4);
+    var l4 = connectModule(m4, m5);
 
   </script>
 </head>
