@@ -1,58 +1,53 @@
 
 const assert = require('chai').assert;
+const lo = require('lodash');
 const fs = require('fs');
 const crypto = require('crypto');
 const async = require('async');
 
 const ModuleCopy = require('../modules/ModuleCopy');
-const ModuleDelete = require('../modules/ModuleDelete');
-const ModuleMove = require('../modules/ModuleMove');
+const { generateRandomFiles } = require('./common');
 
 
 describe('ModuleCopy', function () {
 
   this.timeout(30 * 1000);
 
-  const buf1 = crypto.randomBytes(1024);
-  fs.writeFile('test/file1.xxx', buf1);
-  const hash1 = crypto.createHash('sha256').update(buf1).digest('hex');
-
-  const buf2 = crypto.randomBytes(1048);
-  fs.writeFile('test/file2.xxx', buf2);
-  const hash2 = crypto.createHash('sha256').update(buf2).digest('hex');
-
+  const files = generateRandomFiles(3);
+  let cycle1 = [];
+  let cycle2 = [];
 
   it('should check prerequisites', done => {
     assert.isDefined(ModuleCopy);
-    assert.isDefined(ModuleDelete);
-    assert.isDefined(ModuleMove);
     assert.isDefined(ModuleCopy.prototype.copyFunc);
-    assert.isDefined(ModuleDelete.prototype.delFunc);
-    assert.isDefined(ModuleMove.prototype.moveFunc);
     done();
   });
 
   it('should copy a file', done => {
     const mod = new ModuleCopy({
-      input: ['test/file1.xxx', 'test/file2.xxx'],
+      input: lo.map(files, 'name'),
       output: 'modules'
     });
-    mod.run(() => {
-      const fc1 = fs.readFileSync('modules/file1.xxx');
-      const fc2 = fs.readFileSync('modules/file2.xxx');
-      const th1 = crypto.createHash('sha256').update(fc1).digest('hex');
-      const th2 = crypto.createHash('sha256').update(fc2).digest('hex');
-      assert.equal(buf1.length, fc1.length);
-      assert.equal(buf2.length, fc2.length);
-      assert.equal(hash1, th1);
-      assert.equal(hash2, th2);
+    mod.run((err, result) => {
+      cycle1 = result.input; // Save for next cycle
+      let index = 0;
+      for (const fname of result.input) {
+        const data = fs.readFileSync(fname);
+        const hash = crypto.createHash('sha256').update(data).digest('hex');
+        // Validate content length
+        assert.equal(data.length, files[index].buff.length);
+        // Validate contents
+        assert.equal(hash, files[index].hash);
+        console.log(`${fname} is OK ;`);
+        index++;
+      }
       done();
     });
   });
 
   it('should copy another file', done => {
     const mod = new ModuleCopy({
-      input: ['modules/file1.xxx', 'modules/file2.xxx'],
+      input: cycle1,
       output: 'test',
       preStep: (i, o, cb) => {
         const n = o.replace('.xxx', '.rnd');
@@ -60,27 +55,28 @@ describe('ModuleCopy', function () {
         cb(null, i, n);
       }
     });
-    mod.run(() => {
-      const fc1 = fs.readFileSync('test/file1.rnd');
-      const fc2 = fs.readFileSync('test/file2.rnd');
-      const th1 = crypto.createHash('sha256').update(fc1).digest('hex');
-      const th2 = crypto.createHash('sha256').update(fc2).digest('hex');
-      // Validate content length
-      assert.equal(buf1.length, fc1.length);
-      assert.equal(buf2.length, fc2.length);
-      // Validate content
-      assert.equal(hash1, th1);
-      assert.equal(hash2, th2);
-      // Cleanup the mess
-      fs.unlinkSync('test/file1.rnd');
-      fs.unlinkSync('test/file2.rnd');
+    mod.run((err, result) => {
+      cycle2 = result.input; // Save for next cycle
+      let index = 0;
+      for (const fname of result.input) {
+        const data = fs.readFileSync(fname);
+        const hash = crypto.createHash('sha256').update(data).digest('hex');
+        // Validate content length
+        assert.equal(data.length, files[index].buff.length);
+        // Validate contents
+        assert.equal(hash, files[index].hash);
+        // Cleanup the mess
+        fs.unlinkSync(fname);
+        console.log(`${fname} is OK ;`);
+        index++;
+      }
       done();
     });
   });
 
   it('should exec post step', done => {
     const mod = new ModuleCopy({
-      input: ['test/file1.xxx', 'test/file2.xxx'],
+      input: lo.map(files, 'name'),
       output: 'modules',
       postStep: (i, o, cb) => {
         console.log(`POST:: delete "${i}" and "${o}" ;`);
@@ -90,18 +86,30 @@ describe('ModuleCopy', function () {
         cb(null);
       }
     });
-    mod.run(() => {
+    mod.run((err, result) => {
+      const clean = [];
+      for (let f of files) {
+        clean.push(cb =>
+          fs.access(f.name, fs.constants.R_OK, err => cb(null, err ? true : false))
+        );
+      }
+      for (let f of cycle1) {
+        clean.push(cb =>
+          fs.access(f, fs.constants.R_OK, err => cb(null, err ? true : false))
+        );
+      }
+      for (let f of cycle2) {
+        clean.push(cb =>
+          fs.access(f, fs.constants.R_OK, err => cb(null, err ? true : false))
+        );
+      }
       // The files should be deleted from Post Step
-      async.parallel([
-        cb => fs.access('test/file1.xxx', fs.constants.R_OK, err => cb(null, err ? true : false)),
-        cb => fs.access('test/file2.xxx', fs.constants.R_OK, err => cb(null, err ? true : false)),
-        cb => fs.access('modules/file1.xxx', fs.constants.R_OK, err => cb(null, err ? true : false)),
-        cb => fs.access('modules/file2.xxx', fs.constants.R_OK, err => cb(null, err ? true : false))
-      ], (err, results) => {
+      async.parallel(clean, (err, results) => {
         assert.isNull(err);
-        assert.equal(results.length, 4);
+        assert.equal(results.length, files.length * 3);
+        assert.deepEqual(results, lo.times(results.length, lo.stubTrue));
         done();
-      })
+      });
     });
   });
 
