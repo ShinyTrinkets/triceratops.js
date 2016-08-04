@@ -1,9 +1,17 @@
 
 const lo = require('lodash');
 const async = require('async');
-const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const checkType = require('./utils').checkType;
+
+function NotImplementedError(message) {
+  this.name = 'NotImplementedError';
+  this.message = message || 'Function not implemented';
+  this.stack = (new Error()).stack;
+}
+NotImplementedError.prototype = Object.create(Error.prototype);
+NotImplementedError.prototype.constructor = NotImplementedError;
 
 /**
   @input: 1 or more files
@@ -12,7 +20,9 @@ const checkType = require('./utils').checkType;
 class BaseModule {
 
   constructor(options) {
+    this.moduleName = this.constructor.name;
     this.setup = this.setup.bind(this);
+    this.validate = this.validate.bind(this);
     this.run = this.run.bind(this);
     this.setup(options);
   }
@@ -21,24 +31,32 @@ class BaseModule {
     if (!options || !lo.isPlainObject(options)) {
       return;
     }
+    // Save the options for later
+    // this.options = options;
+
+    if (options.id) {
+      // The ID of the module; Required!
+      this.id = checkType('String', options.id);
+    }
+    if (!options.id) {
+      // Or create ID
+      this.id = `mod-${crypto.randomBytes(2).toString('hex')}`;
+    }
     if (options.input) {
-      // List of input files
+      // List of input files; Required!
       this.input = checkType('Array', options.input);
-      this.progr = this.input.length;
-    } else {
-      this.progr = 0;
     }
     if (options.output) {
-      // Destination folder
+      // Destination folder; Required!
       this.output = checkType('String', options.output);
     }
-    if (lo.isFunction(options.preStart)) {
+    if (lo.isFunction(options.beforeAll)) {
       // Before the start of the operation
-      this.preStart = options.preStart;
+      this.beforeAll = options.beforeAll;
     }
-    if (lo.isFunction(options.postEnd)) {
+    if (lo.isFunction(options.afterAll)) {
       // After the end of the operation
-      this.postEnd = options.postEnd;
+      this.afterAll = options.afterAll;
     }
     if (lo.isFunction(options.preStep)) {
       // Before each file
@@ -48,22 +66,28 @@ class BaseModule {
       // After each file
       this.postStep = options.postStep;
     }
-    if (lo.isFunction(options.stepFunc)) {
+    if (lo.isFunction(options.step)) {
       // The step function
-      this.stepFunc = options.stepFunc;
+      this.step = options.step;
     }
   }
 
-  get size() {
-    let total = 0;
-    for (const fname of this.input) {
-      total += fs.statSync(fname).size;
+  validate() {
+    if (!this.input) {
+      throw new NotImplementedError('"input" variable is invalid');
     }
-    return total;
-  }
 
-  get progress() {
-    return this.progr;
+    if (!this.output) {
+      throw new NotImplementedError('"output" variable is invalid');
+    }
+
+    if (!lo.isNumber(this.size)) {
+      throw new NotImplementedError('"size" is invalid');
+    }
+
+    if (!lo.isFunction(this.step)) {
+      throw new NotImplementedError('"step" function is not implemented');
+    }
   }
 
   run(options, final) {
@@ -75,10 +99,12 @@ class BaseModule {
       this.setup(options);
     }
 
-    const pending = [];
-    const ordered = [];
+    this.validate();
 
-    console.log(`\n[Module] :: input = ${JSON.stringify(this.input)}, ` +
+    const pending = []; // All step functions
+    const ordered = []; // All the file names
+
+    console.log(`\n[${this.moduleName}] :: input = ${JSON.stringify(this.input)}, ` +
       `output folder = ${JSON.stringify(this.output)};`);
 
     for (const infile of this.input) {
@@ -101,7 +127,7 @@ class BaseModule {
             }
           }.bind(this),
           function action(input, output, cb) {
-            this.stepFunc(input, output, cb);
+            this.step(input, output, cb);
           }.bind(this),
           function postAction(input, output) {
             // After each hook
@@ -121,8 +147,8 @@ class BaseModule {
     async.waterfall([
       function beforeEverything(cb) {
         // Before everything hook
-        if (this.preStart) {
-          this.preStart(this.input, (err) => {
+        if (this.beforeAll) {
+          this.beforeAll(this.input, (err) => {
             cb(err);
           });
         } else {
@@ -130,15 +156,15 @@ class BaseModule {
         }
       }.bind(this),
       function actions(cb) {
-        // Run all pending steps
-        async.parallel(pending, (err, result) => {
+        // Run all pending steps, Serial or Parallel
+        async.series(pending, (err, result) => {
           cb(err, result);
         });
       }.bind(this),
       function afterEverything(result, cb) {
         // After everything hook
-        if (this.postEnd) {
-          this.postEnd(result, (err, o) => {
+        if (this.afterAll) {
+          this.afterAll(result, (err, o) => {
             cb(err, o);
           });
         } else {

@@ -11,8 +11,16 @@ class ModuleCopy extends BaseModule {
   constructor(options) {
     super(options);
     this.copyFunc = this.copyFunc.bind(this);
-    options.stepFunc = this.copyFunc;
+    options.step = this.copyFunc;
     this.setup(options);
+  }
+
+  get size() {
+    let total = 0;
+    for (const fname of this.input) {
+      total += fs.statSync(fname).size;
+    }
+    return total;
   }
 
   copyFunc(input, output, cb) {

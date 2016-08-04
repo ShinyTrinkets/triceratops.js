@@ -14,15 +14,25 @@ class ModuleMove extends BaseModule {
     super(options);
     this.silent = true;
     this.moveFunc = this.moveFunc.bind(this);
-    options.stepFunc = this.moveFunc;
+    options.step = this.moveFunc;
     this.setup(options);
+  }
+
+  get size() {
+    let total = 0;
+    for (const fname of this.input) {
+      try {
+        total += fs.statSync(fname).size;
+      } catch (e) {}
+    }
+    return total;
   }
 
   moveFunc(input, output, cb) {
     this.copyFunc(input, output, (err1, i, o) => {
       this.delFunc(i, '', err2 => {
-        console.log(`Moved file "${i}" in "${o}".`);
-        cb(err1 && err2, i, o);
+        console.log(`Moved file "${input}" in "${output}".`);
+        cb(err1 || err2, input, output);
       });
     });
   }

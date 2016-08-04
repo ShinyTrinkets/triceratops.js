@@ -11,8 +11,12 @@ class ModuleDelete extends BaseModule {
   constructor(options) {
     super(options);
     this.delFunc = this.delFunc.bind(this);
-    options.stepFunc = this.delFunc;
+    options.step = this.delFunc;
     this.setup(options);
+  }
+
+  get size() {
+    return this.input.length;
   }
 
   delFunc(input, _, cb) {
